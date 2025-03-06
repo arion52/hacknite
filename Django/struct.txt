@@ -1,0 +1,24 @@
+solar_management/
+├── __pycache__/
+├── management/
+├── __init__.py
+├── admin.py
+├── anomaly.py
+├── asgi.py
+├── models.py
+├── settings.py
+├── urls.py
+├── utils.py
+├── views.py
+├── wsgi.py
+anomaly_model.h5 
+db.sqlite3 
+generation_model.h5 
+generation_X_scaler.pkl 
+generation_y_scaler.pkl 
+LICENSE 
+manage.py
+requirements.txt
+feature_config.json
+unified_scalar.save
+unified_usage_lstm.keras

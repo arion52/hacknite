@@ -1,7 +1,7 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 from django.http import JsonResponse, HttpResponse
 from .models import PowerData
-from .utils import get_weather_forecast, check_if_panel_defective, calculate_mppt
+from .utils import UnifiedUsageHandler, get_weather_forecast, check_if_panel_defective, calculate_mppt
 from .anomaly import ModelHandler
 from django.conf import settings
 import numpy as np
@@ -13,6 +13,8 @@ from rest_framework.decorators import api_view, permission_classes
 from .utils import GenerationModelHandler, generate_sample_solar_data
 from .models import WeatherData, GenerationPrediction
 from django.utils import timezone
+from .models import UsagePrediction, PowerUsage
+import pandas as pd
 
 # Returns weather forecast suggestion
 @api_view(['GET'])
@@ -204,42 +206,50 @@ def generate_forecast(request):
         }, status=500)
 
 # USAGE DETECTION MODEL
-usage_model_handler = ModelHandler(settings.USAGE_MODEL_PATH)
+usage_handler = UnifiedUsageHandler.get_instance()
 
 @require_http_methods(["POST"])
 def predict_usage(request):
+    """API endpoint for unified usage prediction"""
     try:
-        # Fetch the most recent data from the database for prediction
-        # Assuming 'PowerData' stores the required fields for the model
-        # You may need to adjust this based on your model requirements
-        power_data = PowerData.objects.latest('date')  # Fetch the latest power data
+        data = json.loads(request.body)
         
-        # Format data for the model, assuming your model expects a shape (1, 7)
-        input_data = np.array([
-            power_data.input_power, 
-            power_data.usage_power,
-            0,0,0,0,0
-        ]).reshape(1, 7)  # Adjust based on the model's input requirements
-
-        # Call the prediction model
-        prediction = usage_model_handler.predict(input_data)
-
+        # Validate required fields
+        required_fields = ['timestamp', 'consumer_type', 'global_active_power']
+        if not all(field in data for field in required_fields):
+            return JsonResponse({
+                'status': 'error',
+                'message': f'Missing required fields. Required: {required_fields}'
+            }, status=400)
+        
+        # Add default values from feature config
+        data.setdefault('cloud_cover', 0)
+        data.setdefault('temperature', 25.0)
+        
+        # Make prediction
+        prediction = usage_handler.predict([data])
+        
+        # Save to database
+        UsagePrediction.objects.create(
+            timestamp=datetime.fromisoformat(data['timestamp']),
+            predicted_kw=prediction,
+            consumer_type=data['consumer_type'],
+            actual_kw=None
+        )
+        
         return JsonResponse({
-            'input': input_data.tolist(),
-            'prediction': prediction.tolist(),
-            'status': 'success'
+            'status': 'success',
+            'prediction': prediction,
+            'units': 'kW',
+            'model': 'unified'
         })
-
-    except PowerData.DoesNotExist:
-        return JsonResponse({
-            'status': 'error',
-            'message': 'No data available in the database'
-        }, status=400)
+        
+    except json.JSONDecodeError:
+        return JsonResponse({'status': 'error', 'message': 'Invalid JSON'}, status=400)
     except Exception as e:
-        return JsonResponse({
-            'status': 'error',
-            'message': str(e)
-        }, status=500)
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+
+
 @api_view(['GET'])
 def mppt_view(request):
     voltage = float(request.GET.get('voltage', 0))
@@ -290,7 +300,7 @@ def predict_usage_from_db(request):
 
         # Call the usage prediction model with the input data
         input_data = np.asarray(input_data).reshape(1, 1, 7)
-        prediction = usage_model_handler.predict(input_data)
+        prediction = usage_handler.predict(input_data)
 
         return JsonResponse({
             'input': input_data.tolist(),

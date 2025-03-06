@@ -17,5 +17,7 @@ class ModelHandler:
             custom_objects={'mse': mse}
         )
 
-    def predict(self, input_data):
+    def predict(self, input_data, consumer_type=None):
+        if len(input_data.shape) != 3:
+            raise ValueError(f"Expected input shape (batch_size, time_steps, features), got {input_data.shape}")
         return self.model.predict(input_data)

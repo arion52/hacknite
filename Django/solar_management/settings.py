@@ -10,6 +10,7 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.1/ref/settings/
 """
 
+import os
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -136,7 +137,10 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 ANOMALY_MODEL_PATH = BASE_DIR / 'anomaly_model.h5'
 
-USAGE_MODEL_PATH = BASE_DIR / 'usage.h5'
+# Add these to your existing settings
+USAGE_MODEL_PATH = BASE_DIR / 'unified_usage_lstm.keras'
+UNIFIED_SCALER_PATH = BASE_DIR / 'unified_scaler.save'
+FEATURE_CONFIG_PATH = BASE_DIR / 'feature_config.json'
 
 OPENWEATHER_API_KEY = '04c7bcd904174973b92182555240909'
 

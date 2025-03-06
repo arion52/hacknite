@@ -22,4 +22,6 @@ urlpatterns = [
     path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     path('predict_usage_from_db/', predict_usage_from_db, name='predict_usage_from_db'),
     path('generate_forecast/', generate_forecast, name='generate_forecast'),
+
 ]
+

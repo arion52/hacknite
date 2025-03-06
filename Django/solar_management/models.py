@@ -1,4 +1,10 @@
+import os
+import pickle
+from django.conf import settings
 from django.db import models
+import numpy as np
+from tensorflow.keras.models import load_model
+
 
 class PowerData(models.Model):
     sensor_id = models.CharField(max_length=100)
@@ -58,3 +64,29 @@ class GenerationPrediction(models.Model):
         verbose_name = "Generation Prediction"
         verbose_name_plural = "Generation Predictions"
         ordering = ['-timestamp']
+
+class UsagePrediction(models.Model):
+    """Model to store energy usage predictions"""
+    timestamp = models.DateTimeField(default=timezone.now)
+    predicted_kw = models.FloatField(help_text="Predicted energy usage in kW")
+    actual_kw = models.FloatField(null=True, blank=True, help_text="Actual energy usage in kW (if available)")
+    consumer_type = models.CharField(max_length=50, default="Residential", 
+                                    help_text="Type of consumer (Residential/Business)")
+    
+    # Optional relation to weather data
+    weather_data = models.ForeignKey(
+        WeatherData, 
+        on_delete=models.SET_NULL,
+        related_name='usage_predictions',
+        null=True,
+        blank=True
+    )
+    
+    def __str__(self):
+        return f"Usage prediction: {self.predicted_kw:.2f}kW at {self.timestamp}"
+    
+    class Meta:
+        verbose_name = "Usage Prediction"
+        verbose_name_plural = "Usage Predictions"
+        ordering = ['-timestamp']
+

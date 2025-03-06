@@ -1,0 +1,46 @@
+{
+  "numeric_features": [
+    "consumer_type",
+    "occupancy",
+    "base_load_kW",
+    "hvac_kW",
+    "lighting_kW",
+    "solar_generation_kW",
+    "panel_efficiency",
+    "temperature",
+    "cloud_cover",
+    "humidity",
+    "solar_irradiance",
+    "grid_import_kW",
+    "grid_export_kW",
+    "self_consumption_kW",
+    "self_consumption_ratio",
+    "electricity_rate",
+    "export_rate",
+    "import_cost",
+    "export_credit",
+    "net_cost",
+    "consumption_kWh",
+    "solar_generation_kWh"
+  ],
+  "categorical_features": {
+    "consumer_type": {
+      "Residential": 0,
+      "Business": 1
+    },
+    "day_type_columns": [
+      "day_Holiday",
+      "day_Unknown",
+      "day_Weekday",
+      "day_Weekend"
+    ]
+  },
+  "dtype_mappings": {
+    "hour": "int",
+    "day_of_week": "int",
+    "month": "int",
+    "temperature": "float",
+    "cloud_cover": "int",
+    "humidity": "int"
+  }
+}

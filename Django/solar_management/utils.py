@@ -1,9 +1,11 @@
+import json
 import os
 import pickle
 import numpy as np
 import pandas as pd
 from django.conf import settings
 import requests
+import tensorflow as tf
 from tensorflow.keras.models import load_model
 from tensorflow.keras import metrics
 from datetime import datetime, timedelta
@@ -235,3 +237,81 @@ def generate_sample_solar_data(days=1, panels_capacity_kw=10):
     df = df.drop(['solar_irradiance_base', 'season'], axis=1, errors='ignore')
     
     return df
+
+# Usage Model Handler
+class UnifiedUsageHandler:
+    _instance = None
+    _model = None
+    _scaler = None
+    _feature_config = None
+
+    @classmethod
+    def get_instance(cls):
+        if cls._instance is None:
+            cls._instance = cls()
+        return cls._instance
+
+    def __init__(self):
+        self._load_resources()
+
+    def _load_resources(self):
+        """Load model, scaler, and feature config"""
+        try:
+            # Load model
+            self._model = tf.keras.models.load_model(
+                settings.USAGE_MODEL_PATH,
+                compile=False
+            )
+            self._model.compile(optimizer='adam', loss='mse', metrics=['mae'])
+            
+            # Load scaler
+            with open(settings.UNIFIED_SCALER_PATH, 'rb') as f:
+                self._scaler = pickle.load(f)
+            
+            # Load feature config
+            with open(settings.FEATURE_CONFIG_PATH) as f:
+                self._feature_config = json.load(f)
+            
+            print("Unified usage model resources loaded successfully")
+            
+        except Exception as e:
+            print(f"Error loading resources: {str(e)}")
+            import traceback
+            traceback.print_exc()
+
+    def _preprocess_input(self, input_data):
+        """Convert raw input to model-ready format"""
+        # Create DataFrame from input
+        df = pd.DataFrame(input_data)
+        
+        # Add temporal features
+        df['timestamp'] = pd.to_datetime(df['timestamp'])
+        df['hour'] = df['timestamp'].dt.hour
+        df['day_of_week'] = df['timestamp'].dt.dayofweek
+        df['month'] = df['timestamp'].dt.month
+        
+        # Encode categorical features using config
+        cat_mappings = self._feature_config['categorical_features']
+        for col, mapping in cat_mappings.items():
+            df[col] = df[col].map(mapping)
+        
+        # Select and order features
+        features = self._feature_config['numeric_features'] + \
+                 list(cat_mappings.keys())
+        df = df[features]
+        
+        # Scale features
+        return self._scaler.transform(df.values)
+
+    def predict(self, input_data):
+        """Make prediction with unified model"""
+        if self._model is None or self._scaler is None:
+            self._load_resources()
+        
+        # Preprocess and reshape for LSTM
+        processed = self._preprocess_input(input_data)
+        sequence = processed.reshape(1, -1, processed.shape[-1])
+        
+        # Make prediction
+        pred = self._model.predict(sequence)
+        return float(pred[0][0])
