@@ -6,6 +6,9 @@ import seaborn as sns
 from tensorflow.keras import layers, models
 from sklearn.preprocessing import RobustScaler
 from datetime import datetime, timedelta
+from ncps import wirings
+from ncps.keras import LTC
+from tensorflow import keras
 
 # 1. Enhanced Synthetic Data Generation with Realistic Patterns
 def generate_solar_data(days=365, panels=10):
@@ -52,6 +55,22 @@ def generate_solar_data(days=365, panels=10):
             df.loc[i, 'current'] *= 0.1 + 0.2*np.random.rand()
     
     return df
+
+def lnn_model():
+    ncp_arch = wirings.AutoNCP(8, 1) # 8 input units and 1 output unit
+
+    ncp_model = keras.models.Sequential(
+        [
+            keras.layers.InputLayer(input_shape=(None, 2)),
+            LTC(ncp_arch, return_sequences=True),
+        ]
+    )
+
+    ncp_model.compile(
+        optimizer=keras.optimizers.Adam(0.01),  # Learning rate set to 0.01
+        loss='mean_squared_error'  # Common loss function for regression tasks
+    )
+    ncp_model.summary()
 
 # 2. Custom Liquid Neural Network Layer
 class LiquidLayer(layers.Layer):
