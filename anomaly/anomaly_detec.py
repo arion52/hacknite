@@ -187,10 +187,12 @@ def main():
     # Build and train model
     model = build_hybrid_model(input_shape=(X_train.shape[1], X_train.shape[2]))
     model.fit(X_train, y_train,
-              epochs=50,
+              epochs=100,
               batch_size=64,
               validation_split=0.2,
               verbose=1)
+    # Save model
+    model.save('anomaly_main.h5')
     
     # Predict on test set
     y_pred = model.predict(X_test)
