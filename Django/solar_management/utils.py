@@ -6,8 +6,7 @@ import pandas as pd
 from django.conf import settings
 import requests
 import tensorflow as tf
-from tensorflow.keras.models import load_model
-from tensorflow.keras import metrics
+from tensorflow.keras.models import load_model # type: ignore
 from datetime import datetime, timedelta
 
 def get_weather_forecast(lat=12.8911, lon=80.0815):
