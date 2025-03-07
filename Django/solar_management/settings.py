@@ -26,7 +26,7 @@ SECRET_KEY = 'django-insecure-n820l-8k22%6pqw)&h7ycx_-gm-iuwq6h=u65*%ryfxv5dc82o
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['127.0.0.1', '172.16.45.24', '172.16.45.187']
+ALLOWED_HOSTS = ['127.0.0.1', '172.16.45.24', '172.16.45.187', 'localhost']
 
 
 # Application definition
@@ -145,12 +145,9 @@ FEATURE_CONFIG_PATH = BASE_DIR / 'feature_config.json'
 OPENWEATHER_API_KEY = '04c7bcd904174973b92182555240909'
 
 REST_FRAMEWORK = {
-    'DEFAULT_AUTHENTICATION_CLASSES': (
-        'rest_framework_simplejwt.authentication.JWTAuthentication',
-    ),
-    'DEFAULT_PERMISSION_CLASSES': (
-        'rest_framework.permissions.IsAuthenticated',  # Require authentication by default
-    ),
+    'DEFAULT_AUTHENTICATION_CLASSES': [],
+    'DEFAULT_PERMISSION_CLASSES': []
 }
+
 
 GENERATION_MODEL_PATH = BASE_DIR / 'generation_model.h5'

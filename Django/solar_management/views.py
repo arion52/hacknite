@@ -2,7 +2,7 @@ from datetime import datetime, timedelta
 from django.http import JsonResponse, HttpResponse
 from .models import PowerData
 from .utils import UnifiedUsageHandler, get_weather_forecast, check_if_panel_defective, calculate_mppt
-from .anomaly import ModelHandler
+
 from django.conf import settings
 import numpy as np
 import json
@@ -15,6 +15,11 @@ from .models import WeatherData, GenerationPrediction
 from django.utils import timezone
 from .models import UsagePrediction, PowerUsage
 import pandas as pd
+from rest_framework.response import Response
+from .anomaly import AnomalyDetector
+from rest_framework.decorators import api_view
+from rest_framework.response import Response
+from .serializers import AnomalyRequestSerializer
 
 # Returns weather forecast suggestion
 @api_view(['GET'])
@@ -48,43 +53,30 @@ def index(request):
     return HttpResponse("Welcome to the Solar Management App!")
 
 # ANOMALY DETECTION MODEL
-model_handler = ModelHandler(settings.ANOMALY_MODEL_PATH)
 
-@require_http_methods(["POST", "GET"])
-def predict_view(request):
-    if request.method == 'GET':
-        return JsonResponse({'message': 'GET method received, but use POST instead'}, status=405)
+detector = AnomalyDetector()  # Loaded once at server start
+
+@api_view(['POST'])
+def anomaly_detection(request):
+    serializer = AnomalyRequestSerializer(data=request.data)
+    if not serializer.is_valid():
+        return Response(serializer.errors, status=400)
     
-    try:
-        data = json.loads(request.body)
-        input_data = data.get('input_data', None)
-
-        if input_data is None:
-            return JsonResponse({
-                'status': 'error',
-                'message': 'No input data provided'
-            }, status=400)
-
-        input_data = np.asarray(input_data)
-        expected_shape = (1, 1, 22)
-        if input_data.shape != expected_shape:
-            return JsonResponse({
-                'status': 'error',
-                'message': f'Expected input shape {expected_shape}, but got {input_data.shape}'
-            }, status=400)
-
-        prediction = model_handler.predict(input_data)
-        return JsonResponse({
-            'input': input_data.tolist(),
-            'prediction': prediction.tolist(),
-            'status': 'success'
-        })
-
-    except json.JSONDecodeError:
-        return JsonResponse({
-            'status': 'error',
-            'message': 'Invalid JSON format'
-        }, status=400)
+    raw_data = serializer.validated_data
+    input_array = [
+        raw_data['voltage'],
+        raw_data['current'],
+        raw_data['irradiance'],
+        int(raw_data['is_raining']),
+        int(raw_data['is_daylight'])
+    ]
+    
+    prediction = detector.predict([input_array])
+    return Response({
+        'anomaly_score': prediction[0][0],
+        'threshold': 0.85,
+        'is_anomalous': prediction[0][0] > 0.85
+    })
 
 # GENERATION PREDICTION MODEL
 generation_model_handler = GenerationModelHandler.get_instance()
