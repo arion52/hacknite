@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.urls import path
 from django.views.generic.base import RedirectView
-from .views import predict_usage_from_db, weather_advice, check_panel_status, get_power_data, predict_generated, predict_usage, mppt_view, post_sensor_data, generate_forecast, anomaly_detection
+from .views import predict_generation_batch, predict_usage_from_db, weather_advice, check_panel_status, get_power_data, predict_generated, predict_usage, mppt_view, post_sensor_data, generate_forecast, anomaly_detection
 from rest_framework_simplejwt.views import (
     TokenObtainPairView,
     TokenRefreshView,
@@ -22,5 +22,6 @@ urlpatterns = [
     path('predict_usage_from_db/', predict_usage_from_db, name='predict_usage_from_db'),
     path('generate_forecast/', generate_forecast, name='generate_forecast'),
     path('api/anomaly/', anomaly_detection, name='anomaly-detection'),
+    path('predict_generation_batch/', predict_generation_batch, name='predict_generation_batch'),
 ]
 

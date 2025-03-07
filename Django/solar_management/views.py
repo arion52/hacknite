@@ -2,7 +2,10 @@ from datetime import datetime, timedelta
 from django.http import JsonResponse, HttpResponse
 from .models import PowerData
 from .utils import UnifiedUsageHandler, get_weather_forecast, check_if_panel_defective, calculate_mppt
-
+from rest_framework.decorators import api_view
+from rest_framework.response import Response
+import datetime
+import random
 from django.conf import settings
 import numpy as np
 import json
@@ -205,37 +208,34 @@ def predict_usage(request):
     """API endpoint for unified usage prediction"""
     try:
         data = json.loads(request.body)
-        
-        # Validate required fields
-        required_fields = ['timestamp', 'consumer_type', 'global_active_power']
-        if not all(field in data for field in required_fields):
+
+        consumer_type = data.get('consumer_type', 'residential').lower()
+
+        if consumer_type not in ['residential', 'business']:
             return JsonResponse({
                 'status': 'error',
-                'message': f'Missing required fields. Required: {required_fields}'
+                'message': 'Invalid consumer type. Must be "residential" or "business".'
             }, status=400)
-        
-        # Add default values from feature config
-        data.setdefault('cloud_cover', 0)
-        data.setdefault('temperature', 25.0)
-        
-        # Make prediction
-        prediction = usage_handler.predict([data])
-        
-        # Save to database
-        UsagePrediction.objects.create(
-            timestamp=datetime.fromisoformat(data['timestamp']),
-            predicted_kw=prediction,
-            consumer_type=data['consumer_type'],
-            actual_kw=None
-        )
-        
+
+        if 'features' not in data or not isinstance(data['features'], list):
+            return JsonResponse({
+                'status': 'error',
+                'message': 'Invalid input. Expected "features" as a list of records.'
+            }, status=400)
+
+        # Inject consumer_type into each record (only if handler expects it per record)
+        for record in data['features']:
+            record['consumer_type'] = consumer_type  # inject directly if needed
+
+        prediction = usage_handler.predict(data['features'])
+
         return JsonResponse({
             'status': 'success',
             'prediction': prediction,
             'units': 'kW',
             'model': 'unified'
         })
-        
+
     except json.JSONDecodeError:
         return JsonResponse({'status': 'error', 'message': 'Invalid JSON'}, status=400)
     except Exception as e:
@@ -301,3 +301,59 @@ def predict_usage_from_db(request):
         })
 
     return JsonResponse({'status': 'error', 'message': 'No data available'}, status=400)
+
+def generate_synthetic_features(hour):
+    """ Generate realistic synthetic features for solar prediction """
+    return {
+        "temperature": round(random.uniform(24.0, 30.0), 1),
+        "cloud_cover": round(random.uniform(0.1, 0.5), 2),
+        "wind_speed": round(random.uniform(4.5, 6.5), 1),
+        "solar_irradiance": random.randint(700, 900),
+        "hour": hour,
+        "day_of_year": datetime.datetime.now().timetuple().tm_yday,
+        "month": datetime.datetime.now().month,
+    }
+
+@api_view(['GET'])
+def predict_generation_batch(request):
+    period = request.GET.get('period', 'day').lower()
+
+    now = datetime.datetime.now()
+
+    if period == 'day':
+        hours = [8, 9, 10, 11, 12, 13]
+    elif period == 'week':
+        # Let's keep it simple - 3 timestamps per day across the last 7 days
+        hours = [(now - datetime.timedelta(days=i)).replace(hour=10) for i in range(7)]
+    elif period == 'month':
+        # 1 timestamp per day at peak hour (12 PM)
+        hours = [(now - datetime.timedelta(days=i)).replace(hour=12) for i in range(30)]
+    else:
+        return Response({"error": "Invalid period"}, status=400)
+
+    predictions = []
+    for hour in hours:
+        if isinstance(hour, datetime.datetime):
+            # This is for week/month (actual datetime object)
+            timestamp = hour.isoformat()
+            hour = hour.hour  # Extract hour number
+        else:
+            # This is for day (just a number like 8, 9, etc.)
+            timestamp = now.replace(hour=hour, minute=0, second=0).isoformat()
+
+        features = generate_synthetic_features(hour)
+
+        # Run prediction - Mocking the actual model call for now
+        # Replace this with your actual prediction function call if needed
+        predicted_generation = round(random.uniform(5.0, 7.0), 2)
+
+        predictions.append({
+            "timestamp": timestamp,
+            "generation": predicted_generation,
+            "features": features,  # Optional if you wanna show features in frontend
+        })
+
+    return Response({
+        "status": "success",
+        "predictions": predictions
+    })

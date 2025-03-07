@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:sih_testing1/graph_card.dart';
 import 'dart:convert';
-
+import 'services/services.dart' as services;
 const String apiUrl = 'http://172.16.45.187:8000';
 void main() => runApp(MyApp());
 
@@ -119,9 +120,31 @@ class HomeScreenContent extends StatelessWidget {
             // Stats
             _buildStats(context),
             const SizedBox(height: 32),
-            _buildGraphCard(context, 'Power Generated', 'Generated Power Graph'),
+            FutureBuilder<List<Map<String, dynamic>>>(
+              future: services.fetchGenerationBatch('day'),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                } else if (snapshot.hasError || !snapshot.hasData) {
+                  return const Center(child: Text('Failed to load graph data', style: TextStyle(color: Colors.white)));
+                }
+                return GraphCard(title: 'Power Generated (Today)', data: snapshot.data!);
+              },
+            ),
+
             const SizedBox(height: 16),
-            _buildGraphCard(context, 'Power Consumed', 'Consumed Power Graph'),
+            FutureBuilder<List<Map<String, dynamic>>>(
+              future: services.fetchGenerationBatch('day'),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                } else if (snapshot.hasError || !snapshot.hasData) {
+                  return const Center(child: Text('Failed to load graph data', style: TextStyle(color: Colors.white)));
+                }
+                return GraphCard(title: 'Power Generated (Today)', data: snapshot.data!);
+              },
+            ),
+
             const SizedBox(height: 32),
             // Place efficiency and battery health side by side
             _buildSideBySideStats(context),
@@ -185,53 +208,6 @@ class HomeScreenContent extends StatelessWidget {
           ),
         ),
       ],
-    );
-  }
-
-  Widget _buildGraphCard(BuildContext context, String title, String graphText) {
-    return Container(
-      padding: const EdgeInsets.all(16.0),
-      decoration: BoxDecoration(
-        color: const Color(0xFF212121),
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.purple.withOpacity(0.5),
-            blurRadius: 20,
-            offset: const Offset(0, 10),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          Text(
-            title,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Container(
-            height: MediaQuery.of(context).size.width / 2.5,
-            decoration: BoxDecoration(
-              color: Colors.grey[800],
-              borderRadius: BorderRadius.circular(15),
-            ),
-            child: Center(
-              child: Text(
-                graphText,
-                style: TextStyle(
-                  color: Colors.grey[500],
-                  fontSize: 16,
-                  fontStyle: FontStyle.italic,
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
     );
   }
 
@@ -520,7 +496,7 @@ class DataAnalyticsScreen extends StatefulWidget {
 
 class _DataAnalyticsScreenState extends State<DataAnalyticsScreen> {
   String _selectedPeriod = 'Day';
-  List<Map<String, String>> _statsList = [];
+  List<Map<String, dynamic>> _statsList = [];
 
   @override
   void initState() {
@@ -528,18 +504,20 @@ class _DataAnalyticsScreenState extends State<DataAnalyticsScreen> {
     _updateDataForPeriod(_selectedPeriod);
   }
 
-  void _updateDataForPeriod(String period) {
-    // Simulate fetching data based on the selected period
+void _updateDataForPeriod(String period) async {
+  try {
+    final data = await services.fetchGenerationBatch(period);
     setState(() {
-      _statsList = List.generate(
-        5,
-        (index) => {
-          'label': 'Stat ${index + 1}',
-          'value': '${(index + 1) * 10} kWh',
-        },
-      );
+      _statsList = data;
     });
+  } catch (e) {
+    print('Error fetching generation batch data: $e');
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Failed to fetch generation batch data!')),
+    );
   }
+}
+
 
   @override
   Widget build(BuildContext context) {
@@ -601,20 +579,7 @@ class _DataAnalyticsScreenState extends State<DataAnalyticsScreen> {
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 16.0),
-                child: Container(
-                  height: MediaQuery.of(context).size.width / 1.8, // Aspect ratio
-                  color: Colors.grey[900],
-                  child: Center(
-                    child: Text(
-                      'Graph for $_selectedPeriod', // Placeholder text for graph
-                      style: TextStyle(
-                        color: Colors.grey[500],
-                        fontSize: 16,
-                        fontStyle: FontStyle.italic,
-                      ),
-                    ),
-                  ),
-                ),
+                child: GraphCard(title: 'Power Generated ($_selectedPeriod)', data: _statsList),
               ),
             ),
 

@@ -288,6 +288,7 @@ class UnifiedUsageHandler:
         df['hour'] = df['timestamp'].dt.hour
         df['day_of_week'] = df['timestamp'].dt.dayofweek
         df['month'] = df['timestamp'].dt.month
+        df['is_weekend'] = (df['day_of_week'] >= 5).astype(int)
         
         # Encode categorical features using config
         cat_mappings = self._feature_config['categorical_features']
@@ -300,7 +301,7 @@ class UnifiedUsageHandler:
         df = df[features]
         
         # Scale features
-        return self._scaler.transform(df.values)
+        return df.values
 
     def predict(self, input_data):
         """Make prediction with unified model"""
